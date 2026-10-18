@@ -7,6 +7,7 @@ import { DwgReaderConfiguration } from '../../../src/IO/DWG/DwgReaderConfigurati
 import { ModelerGeometry } from '../../../src/Entities/ModelerGeometry.js';
 import { Region } from '../../../src/Entities/Region.js';
 import { NotificationType } from '../../../src/IO/NotificationEventHandler.js';
+import { DxfReader } from '../../../src/IO/DXF/DxfReader.js';
 
 function readModelers(version: string) {
 	// Failsafe stays on: unrelated objects (e.g. ACAD_TABLE in AC1021) may still fail; only modeler errors matter here.
@@ -48,5 +49,35 @@ describe('DWG modeler geometry (3DSOLID / REGION / BODY)', () => {
 		const region = new Region();
 		region.acisData = new TextEncoder().encode('21500 0 1 0\n');
 		expect(region.isBinaryAcisData).toBe(false);
+	});
+
+	// R14 / R2000 DWG store SAT text in blocks with every character above the space mirrored (0x9F - c).
+	it('decodes the SAT text of an AC1015 DWG to the SAT of the same drawing in DXF', () => {
+		const dwg = readModelers('AC1015').modelers;
+		const dxf = DxfReader.readFromStream(new Uint8Array(readFileAsArrayBuffer(path.join(TestVariables.samplesFolder, 'sample_AC1015_ascii.dxf'))));
+		const dxfModelers: ModelerGeometry[] = [];
+		for (const record of dxf.blockRecords) {
+			for (const entity of record.entities) {
+				if (entity instanceof ModelerGeometry) dxfModelers.push(entity);
+			}
+		}
+		// The second header line differs: the DWG keeps the save date, the DXF has an empty one.
+		const tokens = (m: ModelerGeometry) => {
+			const lines = m.getAcisText()!.split(/\r?\n/);
+			return [lines[0], ...lines.slice(2)].join(' ').split(/\s+/).filter(t => t.length > 0);
+		};
+		expect(dwg.map(m => m.handle)).toEqual(dxfModelers.map(m => m.handle));
+		for (let i = 0; i < dwg.length; i++) {
+			expect(tokens(dwg[i])).toEqual(tokens(dxfModelers[i]));
+		}
+	});
+
+	it('decodes the SAT text of an AC1014 DWG into space separated records', () => {
+		const { modelers } = readModelers('AC1014');
+		for (const modeler of modelers) {
+			const text = modeler.getAcisText()!;
+			expect(text.split(/\r?\n/)[0].trim().split(/\s+/).length).toBe(4);
+			expect(text).toMatch(/^body \$-1 /m);
+		}
 	});
 });

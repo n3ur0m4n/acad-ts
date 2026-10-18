@@ -1,3 +1,4 @@
+import { AcisTextCodec } from '../../AcisTextCodec.js';
 import { DwgSectionIO } from '../DwgSectionIO.js';
 import { DwgSectionDefinition } from '../FileHeaders/DwgSectionDefinition.js';
 import { DwgDocumentBuilder } from '../DwgDocumentBuilder.js';
@@ -2330,12 +2331,8 @@ export class DwgObjectReader extends DwgSectionIO {
 				const length = this._mergedReaders.readBitLong();
 				if (length === 0) break;
 				if (length < 0 || length > 0x10000000) throw new Error(`Invalid SAT block length ${length}`);
-				const encoded = this._mergedReaders.readBytes(length);
-				for (let index = 0; index < encoded.length; index++) {
-					if (encoded[index]! >= 0x20 && encoded[index]! <= 0x7e) encoded[index] = 0x9f - encoded[index]!;
-					else if (encoded[index] === 0x09) encoded[index] = 0x20;
-				}
-				chunks.push(encoded);
+				// Characters above the space are mirrored (0x9F - c); spaces and line breaks are kept.
+				chunks.push(AcisTextCodec.decode(this._mergedReaders.readBytes(length)));
 			}
 			geometry.binaryData = DwgObjectReader._concatBytes(chunks);
 			return;
