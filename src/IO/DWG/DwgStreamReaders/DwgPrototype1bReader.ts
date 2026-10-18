@@ -240,9 +240,12 @@ export class DwgPrototype1bReader extends DwgSectionIO {
 				return { entry, handle: this._ulong(), localOffset: this._uint() };
 			});
 			const dataStart = start + segment.objectDataAlignmentOffset * 16;
+			const dataEnd = segment.segmentSize - segment.objectDataAlignmentOffset * 16;
+			// Index entries are not stored in data order: a record ends where the next record (by offset) starts.
+			const offsets = headers.map(h => h.localOffset).sort((a, b) => a - b);
 			for (let i = 0; i < headers.length; i++) {
 				const header = headers[i];
-				const next = headers[i + 1]?.localOffset ?? (segment.segmentSize - segment.objectDataAlignmentOffset * 16);
+				const next = offsets.find(offset => offset > header.localOffset) ?? dataEnd;
 				const maxSize = next - header.localOffset;
 				this._seek(dataStart + header.localOffset);
 				const size = this._uint();
@@ -279,7 +282,8 @@ export class DwgPrototype1bReader extends DwgSectionIO {
 					for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.length; }
 					this._storeData(storage, header.entry.schemaIndex, header.handle, data);
 				} else {
-					throw new Error('Prototype1b record exceeds its segment');
+					// Skip only this record (as ACadSharp does) instead of dropping the whole data storage.
+					this._builder.notify(`Prototype1b record for handle ${header.handle} exceeds its segment`, NotificationType.Warning);
 				}
 			}
 		}

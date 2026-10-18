@@ -2270,10 +2270,15 @@ export class DwgObjectReader extends DwgSectionIO {
   private _readModelerGeometry(template: CadEntityTemplate): CadEntityTemplate {
     const geometry = template.cadObject as ModelerGeometry;
     this._readCommonEntityData(template);
-		const acisEmpty = this._mergedReaders.readBit();
-		if (!acisEmpty) {
-			this._readModelerGeometryData(template);
-    }
+		// The "ACIS empty" bit only exists before R2013: from R2013 on the ACIS data lives in the AcDs
+		// section and the entity stream starts directly with the wireframe flag (same as ACadSharp).
+		if (!this.r2013Plus) {
+			const acisEmpty = this._mergedReaders.readBit();
+			if (!acisEmpty) {
+				this._readModelerGeometryData(template);
+				return template;
+			}
+		}
     const isWireframe = this._mergedReaders.readBit();
     if (isWireframe) {
       const hasPoint = this._mergedReaders.readBit();

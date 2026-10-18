@@ -54,13 +54,17 @@ export abstract class ModelerGeometry extends Entity {
 	get acisData(): Uint8Array { return this.binaryData; }
 	set acisData(value: Uint8Array) { this.binaryData = value; }
 
+	/** SAB signatures: "ACIS BinaryFile" (ACIS) and "ASM BinaryFile4" (ShapeManager, written by AutoCAD 2018+). */
+	static readonly binaryAcisSignatures: readonly string[] = ['ACIS BinaryFile', 'ASM BinaryFile'];
+
 	get isBinaryAcisData(): boolean {
-		const signature = 'ACIS BinaryFile';
-		if (this.binaryData.length < signature.length) return false;
-		for (let i = 0; i < signature.length; i++) {
-			if (this.binaryData[i] !== signature.charCodeAt(i)) return false;
-		}
-		return true;
+		return ModelerGeometry.binaryAcisSignatures.some(signature => {
+			if (this.binaryData.length < signature.length) return false;
+			for (let i = 0; i < signature.length; i++) {
+				if (this.binaryData[i] !== signature.charCodeAt(i)) return false;
+			}
+			return true;
+		});
 	}
 
 	getAcisText(): string | null {
