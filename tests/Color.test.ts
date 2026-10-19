@@ -92,4 +92,19 @@ describe('ColorTests', () => {
     expect(byBlock.isByLayer).toBe(false);
     expect(byBlock.index).toBe(0);
   });
+
+  it('IndexRgbMatchesTheAutoCadPalette', () => {
+    // Entries that differed from the AutoCAD 2020 model space palette (ezdxf DXF_DEFAULT_COLORS): 192 is violet as
+    // in AutoCAD and BricsCAD, not crimson.
+    const palette: [number, number[]][] = [
+      [29, [38, 23, 19]],
+      [91, [127, 255, 127]],
+      [145, [63, 111, 127]],
+      [192, [82, 0, 165]],
+      [203, [145, 82, 165]],
+    ];
+    for (const [index, rgb] of palette) {
+      expect(Color.getIndexRGB(index), `index ${index}`).toEqual(rgb);
+    }
+  });
 });
