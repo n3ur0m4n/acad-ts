@@ -135,7 +135,10 @@ import { LwPolylineVertex } from '../../../Entities/LwPolyline.js';
 import { MeshEdge } from '../../../Entities/Mesh.js';
 import { HatchPatternLine } from '../../../Entities/HatchPattern.js';
 
-export type ReadEntityDelegate = (template: CadEntityTemplate, map: DxfMap, subclass?: string) => boolean;
+/** Last SAT group read per entity: `open` while ODA group 3 chunks wait for the group 1 that ends their line. */
+const satLines = new WeakMap<ModelerGeometry, { open: boolean; full: boolean }>();
+
+export type ReadEntityDelegate =(template: CadEntityTemplate, map: DxfMap, subclass?: string) => boolean;
 
 export interface CommonObjectDataResult {
   name: string | null;
@@ -1587,20 +1590,32 @@ export abstract class DxfSectionReaderBase {
     const geometry = template.cadObject as ModelerGeometry;
 
     switch (this._reader.code as number) {
+      // SAT lines longer than a group value are split in two ways. AutoCAD: group 1 holds the first full chunk,
+      // groups 3 the rest. ODA / BricsCAD: groups 3 hold the first full chunks, the group 1 that follows ends the
+      // line. A group 3 continues the previous line only if that line is a full chunk not ending a record ('#').
       case 1: {
         const raw = this._reader.valueAsString;
         geometry.proprietaryData += `${raw}\n`;
         geometry.acisTextEncoded ??= AcisTextCodec.isEncoded(raw);
         const decoded = geometry.acisTextEncoded ? AcisTextCodec.decode(raw) as string : raw;
         const existing = geometry.getAcisText();
-        geometry.acisData = new TextEncoder().encode(existing ? `${existing}\n${decoded}` : decoded);
+        const state = satLines.get(geometry);
+        const separator = !existing || state?.open ? '' : '\n';
+        geometry.acisData = new TextEncoder().encode(`${existing ?? ''}${separator}${decoded}`);
+        satLines.set(geometry, { open: false, full: raw.length >= 250 });
         return true;
       }
       case 3: {
         const raw = this._reader.valueAsString;
         geometry.proprietaryData += raw;
+        geometry.acisTextEncoded ??= AcisTextCodec.isEncoded(raw);
         const decoded = geometry.acisTextEncoded ? AcisTextCodec.decode(raw) as string : raw;
-        geometry.acisData = new TextEncoder().encode(`${geometry.getAcisText() ?? ''}${decoded}`);
+        const existing = geometry.getAcisText() ?? '';
+        const state = satLines.get(geometry);
+        const continues = state !== undefined && (state.open || (state.full && !existing.trimEnd().endsWith('#')));
+        const separator = continues || existing === '' ? '' : '\n';
+        geometry.acisData = new TextEncoder().encode(`${existing}${separator}${decoded}`);
+        satLines.set(geometry, { open: state?.open || !continues, full: raw.length >= 250 });
         return true;
       }
       case 2:
