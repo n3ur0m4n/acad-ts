@@ -40,6 +40,7 @@ export class DxfTextReader extends DxfStreamReaderBase {
     }
 
     let line = this.decodeString(lineBytes);
+    this.valueUntrimmed = line;
 
     // Trim whitespace like C# StreamReader.ReadLine()
     line = line.trim();

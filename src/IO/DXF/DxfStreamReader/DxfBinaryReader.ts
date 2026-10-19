@@ -43,6 +43,7 @@ export class DxfBinaryReader extends DxfStreamReaderBase {
     }
 
     this.valueRaw = this.decodeString(new Uint8Array(bytes));
+    this.valueUntrimmed = this.valueRaw;
     this.position = this._pos;
     return this.valueRaw;
   }

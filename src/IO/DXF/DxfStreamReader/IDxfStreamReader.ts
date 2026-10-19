@@ -18,6 +18,10 @@ export interface IDxfStreamReader {
 
   valueRaw: string;
 
+  valueUntrimmed: string;
+
+  valueAsUntrimmedString: string;
+
   valueAsBool: boolean;
 
   valueAsShort: number;

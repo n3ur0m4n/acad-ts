@@ -23,8 +23,20 @@ export abstract class DxfStreamReaderBase implements IDxfStreamReader {
 
   public valueRaw: string = '';
 
+  /** The value line with only its line ending removed (group values may end with meaningful spaces). */
+  public valueUntrimmed: string = '';
+
   public get valueAsString(): string {
-    return String(this.value)
+    return DxfStreamReaderBase.unescape(String(this.value));
+  }
+
+  /** The value as a string, untrimmed. */
+  public get valueAsUntrimmedString(): string {
+    return DxfStreamReaderBase.unescape(this.valueUntrimmed);
+  }
+
+  private static unescape(value: string): string {
+    return value
       .replace(/\^J/g, '\n')
       .replace(/\^M/g, '\r')
       .replace(/\^I/g, '\t')

@@ -286,7 +286,7 @@ export abstract class DxfSectionReaderBase {
       case DxfFileToken.entityArc:
         return this.readEntityCodes(new CadEntityTemplate(new Arc()), this._readArc.bind(this), Arc);
       case DxfFileToken.entityBody:
-        return this.readEntityCodes(new CadEntityTemplate(new CadBody()), this._readEntitySubclassMap.bind(this), CadBody);
+        return this.readEntityCodes(new CadEntityTemplate(new CadBody()), this._readModelerGeometry.bind(this), CadBody);
       case DxfFileToken.entityCircle:
         return this.readEntityCodes(new CadEntityTemplate(new Circle()), this._readCircle.bind(this), Circle);
       case DxfFileToken.entityArcDimension:
@@ -1594,7 +1594,7 @@ export abstract class DxfSectionReaderBase {
       // groups 3 the rest. ODA / BricsCAD: groups 3 hold the first full chunks, the group 1 that follows ends the
       // line. A group 3 continues the previous line only if that line is a full chunk not ending a record ('#').
       case 1: {
-        const raw = this._reader.valueAsString;
+        const raw = this._reader.valueAsUntrimmedString;
         geometry.proprietaryData += `${raw}\n`;
         geometry.acisTextEncoded ??= AcisTextCodec.isEncoded(raw);
         const decoded = geometry.acisTextEncoded ? AcisTextCodec.decode(raw) as string : raw;
@@ -1606,7 +1606,7 @@ export abstract class DxfSectionReaderBase {
         return true;
       }
       case 3: {
-        const raw = this._reader.valueAsString;
+        const raw = this._reader.valueAsUntrimmedString;
         geometry.proprietaryData += raw;
         geometry.acisTextEncoded ??= AcisTextCodec.isEncoded(raw);
         const decoded = geometry.acisTextEncoded ? AcisTextCodec.decode(raw) as string : raw;
